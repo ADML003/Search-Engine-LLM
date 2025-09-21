@@ -1,7 +1,7 @@
 import streamlit as st
 from langchain_groq import ChatGroq
-from langchain_community.utilities import ArxivAPIWrapper, WikipediaAPIWrapper, SearxSearchWrapper
-from langchain_community.tools import ArxivQueryRun, WikipediaQueryRun, SearxSearchRun
+from langchain_community.utilities import ArxivAPIWrapper, WikipediaAPIWrapper
+from langchain_community.tools import ArxivQueryRun, WikipediaQueryRun
 from langchain.agents import create_react_agent, AgentExecutor
 from langchain import hub
 from langchain_community.callbacks.streamlit import StreamlitCallbackHandler
@@ -12,39 +12,23 @@ from dotenv import load_dotenv
 load_dotenv()
 
 st.set_page_config(
-    page_title="LangChain Search Agent",
-    page_icon="🔎",
+    page_title="LangChain Knowledge Agent",
+    page_icon="📚",
     layout="wide"
 )
 
 @st.cache_resource
 def initialize_tools():
     """Initialize and cache tools for better performance"""
-    try:
-        # Arxiv tool
-        arxiv_wrapper = ArxivAPIWrapper(top_k_results=1, doc_content_chars_max=200)
-        arxiv = ArxivQueryRun(api_wrapper=arxiv_wrapper)
-        
-        # Wikipedia tool
-        api_wrapper = WikipediaAPIWrapper(top_k_results=1, doc_content_chars_max=200)
-        wiki = WikipediaQueryRun(api_wrapper=api_wrapper)
-        
-        # SearxNG search tool - CORRECTED VERSION
-        search_wrapper = SearxSearchWrapper(searx_host="https://searx.be")
-        search = SearxSearchRun(wrapper=search_wrapper)  # Use 'wrapper', not 'api_wrapper'
-        
-        return [search, arxiv, wiki]
-        
-    except Exception as e:
-        st.error(f"Error initializing tools: {str(e)}")
-        # Fallback to just Wikipedia and Arxiv if SearxNG fails
-        arxiv_wrapper = ArxivAPIWrapper(top_k_results=1, doc_content_chars_max=200)
-        arxiv = ArxivQueryRun(api_wrapper=arxiv_wrapper)
-        
-        api_wrapper = WikipediaAPIWrapper(top_k_results=1, doc_content_chars_max=200)
-        wiki = WikipediaQueryRun(api_wrapper=api_wrapper)
-        
-        return [arxiv, wiki]
+    # Arxiv tool
+    arxiv_wrapper = ArxivAPIWrapper(top_k_results=1, doc_content_chars_max=200)
+    arxiv = ArxivQueryRun(api_wrapper=arxiv_wrapper)
+    
+    # Wikipedia tool
+    api_wrapper = WikipediaAPIWrapper(top_k_results=1, doc_content_chars_max=200)
+    wiki = WikipediaQueryRun(api_wrapper=api_wrapper)
+    
+    return [arxiv, wiki]
 
 def create_agent(api_key):
     """Create and return the agent executor"""
@@ -77,10 +61,10 @@ def create_agent(api_key):
         return None
 
 # Main app
-st.title("🔎 LangChain - Chat with Search")
+st.title("📚 LangChain - Knowledge Assistant")
 st.markdown("""
-This application uses LangChain agents to search the web (via SearxNG), Wikipedia, and Arxiv to answer your questions.
-The agent can access multiple information sources to provide comprehensive answers.
+This application uses LangChain agents to search Wikipedia and Arxiv to answer your questions.
+The agent can access academic papers and encyclopedia articles to provide comprehensive answers.
 """)
 
 # Sidebar for settings
@@ -93,21 +77,29 @@ api_key = st.sidebar.text_input(
 
 if st.sidebar.button("Clear Chat History"):
     st.session_state.messages = [
-        {"role": "assistant", "content": "Hi, I'm a chatbot who can search the web. How can I help you?"}
+        {"role": "assistant", "content": "Hi, I'm a knowledge assistant who can search Wikipedia and Arxiv. How can I help you?"}
     ]
     st.rerun()
 
-st.sidebar.markdown("### Available Tools")
+st.sidebar.markdown("### Available Knowledge Sources")
 st.sidebar.markdown("""
-- 🌐 **Web Search**: SearxNG search (free & privacy-focused)
-- 📚 **Wikipedia**: Encyclopedia articles  
-- 📖 **Arxiv**: Academic papers
+- 📚 **Wikipedia**: General encyclopedia articles  
+- 📖 **Arxiv**: Academic papers and research
+""")
+
+st.sidebar.markdown("### Perfect for")
+st.sidebar.markdown("""
+- General knowledge questions
+- Academic research
+- Scientific concepts
+- Historical information
+- Technical explanations
 """)
 
 # Initialize chat history
 if "messages" not in st.session_state:
     st.session_state.messages = [
-        {"role": "assistant", "content": "Hi, I'm a chatbot who can search the web using SearxNG. How can I help you?"}
+        {"role": "assistant", "content": "Hi, I'm a knowledge assistant who can search Wikipedia and Arxiv. How can I help you learn something new?"}
     ]
 
 # Display chat messages
@@ -116,7 +108,7 @@ for msg in st.session_state.messages:
         st.write(msg["content"])
 
 # Chat input
-if prompt := st.chat_input(placeholder="What would you like to know?"):
+if prompt := st.chat_input(placeholder="Ask me about any topic..."):
     # Add user message to chat history
     st.session_state.messages.append({"role": "user", "content": prompt})
     
@@ -143,7 +135,7 @@ if prompt := st.chat_input(placeholder="What would you like to know?"):
                     )
                     
                     # Execute agent with spinner
-                    with st.spinner("Searching and thinking..."):
+                    with st.spinner("Searching knowledge bases..."):
                         response = agent_executor.invoke(
                             {"input": prompt},
                             {"callbacks": [st_cb]}
@@ -175,5 +167,7 @@ st.sidebar.markdown("""
 - 🦜 LangChain
 - 🚀 Streamlit  
 - ⚡ Groq (Llama3)
-- 🔍 SearxNG (Free Search)
+- 📚 Wikipedia & Arxiv
 """)
+
+st.sidebar.success("✅ All tools operational")
