@@ -35,7 +35,7 @@ def create_agent(api_key):
     try:
         llm = ChatGroq(
             groq_api_key=api_key, 
-            model_name="llama3-8b-8192", 
+            model_name="llama-3.3-70b-versatile", 
             streaming=True,
             temperature=0.1
         )
@@ -171,3 +171,4 @@ st.sidebar.markdown("""
 """)
 
 st.sidebar.success("✅ All tools operational")
+
