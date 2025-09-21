@@ -1,54 +1,166 @@
 import streamlit as st
 from langchain_groq import ChatGroq
-from langchain_community.utilities import ArxivAPIWrapper,WikipediaAPIWrapper
-from langchain_community.tools import ArxivQueryRun,WikipediaQueryRun,DuckDuckGoSearchRun
-from langchain.agents import initialize_agent,AgentType
-from langchain.callbacks import StreamlitCallbackHandler
+from langchain_community.utilities import ArxivAPIWrapper, WikipediaAPIWrapper
+from langchain_community.tools import ArxivQueryRun, WikipediaQueryRun, DuckDuckGoSearchRun
+from langchain.agents import create_react_agent, AgentExecutor
+from langchain import hub
+from langchain_community.callbacks.streamlit import StreamlitCallbackHandler
 import os
 from dotenv import load_dotenv
-## Code
-####
 
-## Arxiv and wikipedia Tools
-arxiv_wrapper=ArxivAPIWrapper(top_k_results=1, doc_content_chars_max=200)
-arxiv=ArxivQueryRun(api_wrapper=arxiv_wrapper)
+# Load environment variables
+load_dotenv()
 
-api_wrapper=WikipediaAPIWrapper(top_k_results=1,doc_content_chars_max=200)
-wiki=WikipediaQueryRun(api_wrapper=api_wrapper)
+st.set_page_config(
+    page_title="LangChain Search Agent",
+    page_icon="🔎",
+    layout="wide"
+)
 
-search=DuckDuckGoSearchRun(name="Search")
+@st.cache_resource
+def initialize_tools():
+    """Initialize and cache tools for better performance"""
+    # Arxiv tool
+    arxiv_wrapper = ArxivAPIWrapper(top_k_results=1, doc_content_chars_max=200)
+    arxiv = ArxivQueryRun(api_wrapper=arxiv_wrapper)
+    
+    # Wikipedia tool
+    api_wrapper = WikipediaAPIWrapper(top_k_results=1, doc_content_chars_max=200)
+    wiki = WikipediaQueryRun(api_wrapper=api_wrapper)
+    
+    # DuckDuckGo search tool
+    search = DuckDuckGoSearchRun(name="Search")
+    
+    return [search, arxiv, wiki]
 
+def create_agent(api_key):
+    """Create and return the agent executor"""
+    try:
+        llm = ChatGroq(
+            groq_api_key=api_key, 
+            model_name="llama3-8b-8192", 
+            streaming=True,
+            temperature=0.1
+        )
+        
+        tools = initialize_tools()
+        
+        # Get the React prompt from hub
+        react_prompt = hub.pull("hwchase17/react")
+        
+        # Create agent using modern approach
+        agent = create_react_agent(llm, tools, react_prompt)
+        agent_executor = AgentExecutor(
+            agent=agent, 
+            tools=tools, 
+            verbose=True, 
+            handle_parsing_errors=True,
+            max_iterations=5
+        )
+        
+        return agent_executor
+    except Exception as e:
+        st.error(f"Error creating agent: {str(e)}")
+        return None
 
-st.title("🔎 LangChain - Chat with search")
-"""
-In this example, we're using `StreamlitCallbackHandler` to display the thoughts and actions of an agent in an interactive Streamlit app.
-Try more LangChain 🤝 Streamlit Agent examples at [github.com/langchain-ai/streamlit-agent](https://github.com/langchain-ai/streamlit-agent).
-"""
+# Main app
+st.title("🔎 LangChain - Chat with Search")
+st.markdown("""
+This application uses LangChain agents to search the web, Wikipedia, and Arxiv to answer your questions.
+The agent can access multiple information sources to provide comprehensive answers.
+""")
 
-## Sidebar for settings
-st.sidebar.title("Settings")
-api_key=st.sidebar.text_input("Enter your Groq API Key:",type="password")
+# Sidebar for settings
+st.sidebar.title("⚙️ Settings")
+api_key = st.sidebar.text_input(
+    "Enter your Groq API Key:", 
+    type="password", 
+    help="Get your API key from https://console.groq.com/keys"
+)
 
+if st.sidebar.button("Clear Chat History"):
+    st.session_state.messages = [
+        {"role": "assistant", "content": "Hi, I'm a chatbot who can search the web. How can I help you?"}
+    ]
+    st.rerun()
+
+st.sidebar.markdown("### Available Tools")
+st.sidebar.markdown("""
+- 🌐 **Web Search**: DuckDuckGo search
+- 📚 **Wikipedia**: Encyclopedia articles  
+- 📖 **Arxiv**: Academic papers
+""")
+
+# Initialize chat history
 if "messages" not in st.session_state:
-    st.session_state["messages"]=[
-        {"role":"assisstant","content":"Hi,I'm a chatbot who can search the web. How can I help you?"}
+    st.session_state.messages = [
+        {"role": "assistant", "content": "Hi, I'm a chatbot who can search the web. How can I help you?"}
     ]
 
+# Display chat messages
 for msg in st.session_state.messages:
-    st.chat_message(msg["role"]).write(msg['content'])
+    with st.chat_message(msg["role"]):
+        st.write(msg["content"])
 
-if prompt:=st.chat_input(placeholder="What is machine learning?"):
-    st.session_state.messages.append({"role":"user","content":prompt})
-    st.chat_message("user").write(prompt)
+# Chat input
+if prompt := st.chat_input(placeholder="What would you like to know?"):
+    # Add user message to chat history
+    st.session_state.messages.append({"role": "user", "content": prompt})
+    
+    # Display user message
+    with st.chat_message("user"):
+        st.write(prompt)
+    
+    # Process with agent
+    if not api_key:
+        with st.chat_message("assistant"):
+            st.warning("Please enter your Groq API key in the sidebar to continue.")
+    else:
+        with st.chat_message("assistant"):
+            try:
+                # Create agent
+                agent_executor = create_agent(api_key)
+                
+                if agent_executor:
+                    # Create callback handler
+                    st_cb = StreamlitCallbackHandler(
+                        st.container(), 
+                        expand_new_thoughts=False,
+                        collapse_completed_thoughts=True
+                    )
+                    
+                    # Execute agent with spinner
+                    with st.spinner("Searching and thinking..."):
+                        response = agent_executor.invoke(
+                            {"input": prompt},
+                            {"callbacks": [st_cb]}
+                        )
+                    
+                    # Extract and display response
+                    if "output" in response:
+                        answer = response["output"]
+                        st.session_state.messages.append({
+                            "role": "assistant", 
+                            "content": answer
+                        })
+                        st.write(answer)
+                    else:
+                        st.error("No output received from agent")
+                        
+            except Exception as e:
+                error_msg = f"An error occurred: {str(e)}"
+                st.error(error_msg)
+                st.session_state.messages.append({
+                    "role": "assistant", 
+                    "content": error_msg
+                })
 
-    llm=ChatGroq(groq_api_key=api_key,model_name="Llama3-8b-8192",streaming=True)
-    tools=[search,arxiv,wiki]
-
-    search_agent=initialize_agent(tools,llm,agent=AgentType.ZERO_SHOT_REACT_DESCRIPTION,handling_parsing_errors=True)
-
-    with st.chat_message("assistant"):
-        st_cb=StreamlitCallbackHandler(st.container(),expand_new_thoughts=False)
-        response=search_agent.run(st.session_state.messages,callbacks=[st_cb])
-        st.session_state.messages.append({'role':'assistant',"content":response})
-        st.write(response)
-
+# Footer
+st.sidebar.markdown("---")
+st.sidebar.markdown("### About")
+st.sidebar.markdown("""
+Built with:
+- 🦜 LangChain
+- 🚀 Streamlit  
+- ⚡ Groq (Llama3)
+""")
