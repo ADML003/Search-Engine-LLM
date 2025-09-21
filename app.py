@@ -29,16 +29,9 @@ def initialize_tools():
         api_wrapper = WikipediaAPIWrapper(top_k_results=1, doc_content_chars_max=200)
         wiki = WikipediaQueryRun(api_wrapper=api_wrapper)
         
-        # SearxNG search tool - using public instance
-        search_wrapper = SearxSearchWrapper(
-            searx_host="https://searx.be",
-            k=3  # Number of results
-        )
-        search = SearxSearchRun(
-            api_wrapper=search_wrapper,
-            name="WebSearch",
-            description="Search the web for current information"
-        )
+        # SearxNG search tool - CORRECTED VERSION
+        search_wrapper = SearxSearchWrapper(searx_host="https://searx.be")
+        search = SearxSearchRun(wrapper=search_wrapper)  # Use 'wrapper', not 'api_wrapper'
         
         return [search, arxiv, wiki]
         
@@ -109,15 +102,6 @@ st.sidebar.markdown("""
 - 🌐 **Web Search**: SearxNG search (free & privacy-focused)
 - 📚 **Wikipedia**: Encyclopedia articles  
 - 📖 **Arxiv**: Academic papers
-""")
-
-st.sidebar.markdown("### About SearxNG")
-st.sidebar.markdown("""
-SearxNG is a free, open-source search engine that:
-- Aggregates results from multiple search engines
-- Respects privacy (no tracking)
-- Requires no API keys
-- Has no usage limits
 """)
 
 # Initialize chat history
@@ -193,10 +177,3 @@ st.sidebar.markdown("""
 - ⚡ Groq (Llama3)
 - 🔍 SearxNG (Free Search)
 """)
-
-# Status indicator
-tools = initialize_tools()
-if len(tools) == 3:
-    st.sidebar.success("✅ All tools operational")
-else:
-    st.sidebar.warning("⚠️ Running with limited tools")
