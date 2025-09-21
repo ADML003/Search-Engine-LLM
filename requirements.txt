@@ -8,9 +8,14 @@ langchain-huggingface>=0.1.2,<0.2.0
 langchain-chroma>=0.1.4,<0.2.0
 langchain-groq>=0.2.0,<0.3.0
 
+# LangChain Hub for agent prompts
+langchainhub>=0.1.15
+
+# Streamlit for web interface
+streamlit>=1.28.0
+
 # Environment and utilities
 python-dotenv>=1.0.0
-ipykernel>=6.29.0
 
 # Document processing
 pypdf>=4.3.0
@@ -20,8 +25,11 @@ arxiv>=2.1.0
 unstructured>=0.15.0
 pytube>=15.0.0
 
-# Wikipedia support - EXACT PACKAGE NAME
+# Wikipedia support
 wikipedia
+
+# Search tools
+duckduckgo-search>=6.2.0
 
 # Vector stores and embeddings
 chromadb>=0.5.0
@@ -40,6 +48,3 @@ mysql-connector-python>=9.0.0
 SQLAlchemy>=2.0.0
 validators>=0.34.0
 youtube-transcript-api>=0.6.0
-
-# Search tool - stable version
-duckduckgo-search>=6.2.0,<7.0.0
