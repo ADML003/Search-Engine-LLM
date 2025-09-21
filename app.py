@@ -17,6 +17,11 @@ st.set_page_config(
     layout="wide"
 )
 
+# Clear any cached resources to avoid old model references
+if st.sidebar.button("🔄 Clear Cache"):
+    st.cache_resource.clear()
+    st.rerun()
+
 @st.cache_resource
 def initialize_tools():
     """Initialize and cache tools for better performance"""
@@ -30,12 +35,12 @@ def initialize_tools():
     
     return [arxiv, wiki]
 
-def create_agent(api_key):
+def create_agent(api_key, model_choice):
     """Create and return the agent executor"""
     try:
         llm = ChatGroq(
             groq_api_key=api_key, 
-            model_name="llama-3.3-70b-versatile", 
+            model_name=model_choice,
             streaming=True,
             temperature=0.1
         )
@@ -75,6 +80,21 @@ api_key = st.sidebar.text_input(
     help="Get your API key from https://console.groq.com/keys"
 )
 
+# Model selection with current supported models
+model_options = {
+    "Llama 3.3 70B (Recommended)": "llama-3.3-70b-versatile",
+    "Llama 3.1 8B (Faster)": "llama-3.1-8b-instant",
+    "Qwen 3 32B": "qwen/qwen3-32b"
+}
+
+selected_model = st.sidebar.selectbox(
+    "Choose Model:",
+    options=list(model_options.keys()),
+    index=0
+)
+
+model_name = model_options[selected_model]
+
 if st.sidebar.button("Clear Chat History"):
     st.session_state.messages = [
         {"role": "assistant", "content": "Hi, I'm a knowledge assistant who can search Wikipedia and Arxiv. How can I help you?"}
@@ -95,6 +115,9 @@ st.sidebar.markdown("""
 - Historical information
 - Technical explanations
 """)
+
+st.sidebar.markdown(f"### Current Model")
+st.sidebar.info(f"Using: {model_name}")
 
 # Initialize chat history
 if "messages" not in st.session_state:
@@ -123,8 +146,8 @@ if prompt := st.chat_input(placeholder="Ask me about any topic..."):
     else:
         with st.chat_message("assistant"):
             try:
-                # Create agent
-                agent_executor = create_agent(api_key)
+                # Create agent with selected model
+                agent_executor = create_agent(api_key, model_name)
                 
                 if agent_executor:
                     # Create callback handler
@@ -155,6 +178,11 @@ if prompt := st.chat_input(placeholder="Ask me about any topic..."):
             except Exception as e:
                 error_msg = f"An error occurred: {str(e)}"
                 st.error(error_msg)
+                
+                # Suggest trying a different model if the current one fails
+                if "decommissioned" in str(e).lower() or "deprecated" in str(e).lower():
+                    st.warning("The selected model may be deprecated. Try selecting a different model from the sidebar.")
+                
                 st.session_state.messages.append({
                     "role": "assistant", 
                     "content": error_msg
@@ -166,9 +194,8 @@ st.sidebar.markdown("### Built with")
 st.sidebar.markdown("""
 - 🦜 LangChain
 - 🚀 Streamlit  
-- ⚡ Groq (Llama3)
+- ⚡ Groq Models
 - 📚 Wikipedia & Arxiv
 """)
 
 st.sidebar.success("✅ All tools operational")
-
