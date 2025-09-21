@@ -1,7 +1,7 @@
 import streamlit as st
 from langchain_groq import ChatGroq
-from langchain_community.utilities import ArxivAPIWrapper, WikipediaAPIWrapper
-from langchain_community.tools import ArxivQueryRun, WikipediaQueryRun, DuckDuckGoSearchRun
+from langchain_community.utilities import ArxivAPIWrapper, WikipediaAPIWrapper, SearxSearchWrapper
+from langchain_community.tools import ArxivQueryRun, WikipediaQueryRun, SearxSearchRun
 from langchain.agents import create_react_agent, AgentExecutor
 from langchain import hub
 from langchain_community.callbacks.streamlit import StreamlitCallbackHandler
@@ -20,18 +20,38 @@ st.set_page_config(
 @st.cache_resource
 def initialize_tools():
     """Initialize and cache tools for better performance"""
-    # Arxiv tool
-    arxiv_wrapper = ArxivAPIWrapper(top_k_results=1, doc_content_chars_max=200)
-    arxiv = ArxivQueryRun(api_wrapper=arxiv_wrapper)
-    
-    # Wikipedia tool
-    api_wrapper = WikipediaAPIWrapper(top_k_results=1, doc_content_chars_max=200)
-    wiki = WikipediaQueryRun(api_wrapper=api_wrapper)
-    
-    # DuckDuckGo search tool
-    search = DuckDuckGoSearchRun(name="Search")
-    
-    return [search, arxiv, wiki]
+    try:
+        # Arxiv tool
+        arxiv_wrapper = ArxivAPIWrapper(top_k_results=1, doc_content_chars_max=200)
+        arxiv = ArxivQueryRun(api_wrapper=arxiv_wrapper)
+        
+        # Wikipedia tool
+        api_wrapper = WikipediaAPIWrapper(top_k_results=1, doc_content_chars_max=200)
+        wiki = WikipediaQueryRun(api_wrapper=api_wrapper)
+        
+        # SearxNG search tool - using public instance
+        search_wrapper = SearxSearchWrapper(
+            searx_host="https://searx.be",
+            k=3  # Number of results
+        )
+        search = SearxSearchRun(
+            api_wrapper=search_wrapper,
+            name="WebSearch",
+            description="Search the web for current information"
+        )
+        
+        return [search, arxiv, wiki]
+        
+    except Exception as e:
+        st.error(f"Error initializing tools: {str(e)}")
+        # Fallback to just Wikipedia and Arxiv if SearxNG fails
+        arxiv_wrapper = ArxivAPIWrapper(top_k_results=1, doc_content_chars_max=200)
+        arxiv = ArxivQueryRun(api_wrapper=arxiv_wrapper)
+        
+        api_wrapper = WikipediaAPIWrapper(top_k_results=1, doc_content_chars_max=200)
+        wiki = WikipediaQueryRun(api_wrapper=api_wrapper)
+        
+        return [arxiv, wiki]
 
 def create_agent(api_key):
     """Create and return the agent executor"""
@@ -66,7 +86,7 @@ def create_agent(api_key):
 # Main app
 st.title("🔎 LangChain - Chat with Search")
 st.markdown("""
-This application uses LangChain agents to search the web, Wikipedia, and Arxiv to answer your questions.
+This application uses LangChain agents to search the web (via SearxNG), Wikipedia, and Arxiv to answer your questions.
 The agent can access multiple information sources to provide comprehensive answers.
 """)
 
@@ -86,15 +106,24 @@ if st.sidebar.button("Clear Chat History"):
 
 st.sidebar.markdown("### Available Tools")
 st.sidebar.markdown("""
-- 🌐 **Web Search**: DuckDuckGo search
+- 🌐 **Web Search**: SearxNG search (free & privacy-focused)
 - 📚 **Wikipedia**: Encyclopedia articles  
 - 📖 **Arxiv**: Academic papers
+""")
+
+st.sidebar.markdown("### About SearxNG")
+st.sidebar.markdown("""
+SearxNG is a free, open-source search engine that:
+- Aggregates results from multiple search engines
+- Respects privacy (no tracking)
+- Requires no API keys
+- Has no usage limits
 """)
 
 # Initialize chat history
 if "messages" not in st.session_state:
     st.session_state.messages = [
-        {"role": "assistant", "content": "Hi, I'm a chatbot who can search the web. How can I help you?"}
+        {"role": "assistant", "content": "Hi, I'm a chatbot who can search the web using SearxNG. How can I help you?"}
     ]
 
 # Display chat messages
@@ -157,10 +186,17 @@ if prompt := st.chat_input(placeholder="What would you like to know?"):
 
 # Footer
 st.sidebar.markdown("---")
-st.sidebar.markdown("### About")
+st.sidebar.markdown("### Built with")
 st.sidebar.markdown("""
-Built with:
 - 🦜 LangChain
 - 🚀 Streamlit  
 - ⚡ Groq (Llama3)
+- 🔍 SearxNG (Free Search)
 """)
+
+# Status indicator
+tools = initialize_tools()
+if len(tools) == 3:
+    st.sidebar.success("✅ All tools operational")
+else:
+    st.sidebar.warning("⚠️ Running with limited tools")
