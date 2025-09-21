@@ -1,24 +1,26 @@
+# Core LangChain packages
 langchain
+langchain_community
+langchain-text-splitters
+langchain-openai
+langchain_huggingface
+langchain_chroma
+langchain-groq
+
+# Utilities
 python-dotenv
 ipykernel
-langchain_community
 pypdf
 bs4
 arxiv
 pymupdf
 wikipedia
-langchain-text-splitters
-langchain-openai
 chromadb
 sentence_transformers
-langchain_huggingface
 faiss-cpu
-langchain_chroma
 duckdb
 pandas
 openai
-langchain-groq
-duckduckgo-search==5.3.1b1
 mysql-connector-python
 SQLAlchemy
 validators==0.28.1
@@ -27,4 +29,8 @@ unstructured
 pytube
 numexpr
 huggingface_hub
+
+# Search tool
+duckduckgo-search==5.3.1b1
+
 
