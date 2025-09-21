@@ -18,7 +18,7 @@ duckdb
 pandas
 openai
 langchain-groq
-duckgo_search>=5.3.1
+duckduckgo-search==5.3.1b1
 mysql-connector-python
 SQLAlchemy
 validators==0.28.1
@@ -27,3 +27,4 @@ unstructured
 pytube
 numexpr
 huggingface_hub
+
